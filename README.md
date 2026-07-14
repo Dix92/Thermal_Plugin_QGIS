@@ -69,11 +69,15 @@ If you want to develop or modify the plugin:
    - This determines how RGB colors are interpreted as temperatures
    - **Recommended**: Use **Rainbow ISO 2** — it is currently the only tested and proven color profile. If possible, capture/export your thermal images with this color scale
 
-5. **Set Output Location**:
+5. **Source CRS** (optional):
+   - Leave on **Auto-detect** (recommended): some drone-processing exports tag the file with a projected CRS (e.g. EPSG:2056) while the coordinates are actually longitude/latitude degrees; the plugin detects this and treats the source as WGS84
+   - Or choose "Use file CRS as-is" / "Specify source CRS" to control it manually
+
+6. **Set Output Location**:
    - Choose where to save the reconstructed temperature raster
    - The output will be a single-band GeoTIFF with temperature values in Celsius
 
-6. **Process**:
+7. **Process**:
    - Click "Process" to begin reconstruction
    - The plugin will analyze the RGB values and reconstruct temperature data
    - The output raster will be automatically loaded into your QGIS project
@@ -122,6 +126,7 @@ The plugin analyzes the RGB values in your thermal orthomosaic and reconstructs 
 - **Plugin not appearing**: Ensure the folder name has no spaces and is in the correct plugins directory
 - **Processing errors**: Check that your input raster has at least 3 bands (RGB)
 - **Incorrect temperatures**: Verify your temperature range and color profile match the original image settings
+- **Output in the wrong location / reprojection looks wrong**: The input file probably has a wrong CRS tag embedded (common with drone-processing exports that write a projected CRS while the coordinates are lon/lat degrees). Keep "Source CRS" on **Auto-detect**, or set the correct source CRS manually
 
 ## Contributing
 

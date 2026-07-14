@@ -195,6 +195,22 @@ class ThermalTemperatureDialog(QDialog):
         
         # CRS selection
         crs_layout = QFormLayout()
+
+        # Source CRS handling: drone-service exports often carry a wrong CRS
+        # tag in the file (e.g. EPSG:2056 while the coordinates are lon/lat)
+        self.source_crs_mode = QComboBox()
+        self.source_crs_mode.addItems([
+            "Auto-detect (fix wrong file tag)",
+            "Use file CRS as-is",
+            "Specify source CRS",
+        ])
+        self.source_crs_mode.setCurrentIndex(0)
+        self.source_crs_mode.currentIndexChanged.connect(self.toggle_crs_selector)
+        self.source_crs_selector = QgsProjectionSelectionWidget()
+        self.source_crs_selector.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        crs_layout.addRow("Source CRS:", self.source_crs_mode)
+        crs_layout.addRow("", self.source_crs_selector)
+
         self.crs_selector = QgsProjectionSelectionWidget()
         # Default to project CRS, or EPSG:4326 if not set
         project_crs = QgsProject.instance().crs()
@@ -202,7 +218,7 @@ class ThermalTemperatureDialog(QDialog):
             self.crs_selector.setCrs(project_crs)
         else:
             self.crs_selector.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
-        
+
         # Add option to use input CRS
         self.use_input_crs = QComboBox()
         self.use_input_crs.addItems(["Use specified CRS", "Use input raster CRS"])
@@ -280,9 +296,10 @@ class ThermalTemperatureDialog(QDialog):
             self.output_raster_line.setText(filename)
     
     def toggle_crs_selector(self):
-        """Enable/disable CRS selector based on user choice"""
+        """Enable/disable CRS selectors based on user choice"""
         use_specified = (self.use_input_crs.currentIndex() == 0)
         self.crs_selector.setEnabled(use_specified)
+        self.source_crs_selector.setEnabled(self.source_crs_mode.currentIndex() == 2)
     
     def apply_thermal_color_ramp(self, layer, min_temp, max_temp):
         """Apply thermal color ramp to the layer based on temperature range.
@@ -410,7 +427,18 @@ class ThermalTemperatureDialog(QDialog):
                     self.progress_bar.setVisible(False)
                     return
             # If index == 1, use input raster CRS (target_crs remains None)
-            
+
+            # Determine source CRS handling
+            source_crs = None
+            auto_fix_source_crs = (self.source_crs_mode.currentIndex() == 0)
+            if self.source_crs_mode.currentIndex() == 2:
+                source_crs = self.source_crs_selector.crs()
+                if not source_crs.isValid():
+                    QMessageBox.warning(self, "Error", "Please select a valid source CRS.")
+                    self.process_btn.setEnabled(True)
+                    self.progress_bar.setVisible(False)
+                    return
+
             # Reconstruct temperature
             reconstructor = TemperatureReconstructor(
                 input_path,
@@ -418,17 +446,21 @@ class ThermalTemperatureDialog(QDialog):
                 self.min_temp.value(),
                 self.max_temp.value(),
                 self.color_profile.currentText(),
-                target_crs=target_crs
+                target_crs=target_crs,
+                source_crs=source_crs,
+                auto_fix_source_crs=auto_fix_source_crs
             )
-            
+
             reconstructor.progress_callback = lambda p: self.progress_bar.setValue(int(p))
             reconstructor.reconstruct()
-            
+
             self.progress_bar.setValue(100)
-            QMessageBox.information(
-                self, "Success", 
+            success_msg = (
                 f"Temperature reconstruction completed!\nOutput saved to:\n{output_path}"
             )
+            if reconstructor.source_crs_fixed:
+                success_msg += f"\n\nNote: {reconstructor.source_crs_fixed}"
+            QMessageBox.information(self, "Success", success_msg)
             
             # Get layer name (use custom name or default)
             layer_name = self.layer_name_line.text().strip()
@@ -462,13 +494,17 @@ class ThermalTemperatureDialog(QDialog):
 class TemperatureReconstructor:
     """Class for reconstructing temperature values from RGB thermal images"""
     
-    def __init__(self, input_path, output_path, min_temp, max_temp, color_profile, target_crs=None):
+    def __init__(self, input_path, output_path, min_temp, max_temp, color_profile,
+                 target_crs=None, source_crs=None, auto_fix_source_crs=True):
         self.input_path = input_path
         self.output_path = output_path
         self.min_temp = min_temp
         self.max_temp = max_temp
         self.color_profile = color_profile
         self.target_crs = target_crs  # QgsCoordinateReferenceSystem or None
+        self.source_crs = source_crs  # QgsCoordinateReferenceSystem or None (overrides file CRS)
+        self.auto_fix_source_crs = auto_fix_source_crs
+        self.source_crs_fixed = None  # set to a message when a wrong file tag was corrected
         self.progress_callback = None
         
     def reconstruct(self):
@@ -537,13 +573,40 @@ class TemperatureReconstructor:
             ['COMPRESS=LZW']
         )
         
-        # Get input CRS
+        # Get input CRS. The user-specified source CRS wins over the file tag;
+        # otherwise trust the file, unless auto-fix detects that the tag
+        # contradicts the coordinates.
         input_srs = osr.SpatialReference()
-        input_proj = dataset.GetProjection()
-        if input_proj:
-            input_srs.ImportFromWkt(input_proj)
+        if self.source_crs is not None and self.source_crs.isValid():
+            input_srs.ImportFromWkt(self.source_crs.toWkt())
         else:
-            input_srs.ImportFromEPSG(4326)  # Default to WGS84 if no projection
+            input_proj = dataset.GetProjection()
+            if input_proj:
+                input_srs.ImportFromWkt(input_proj)
+            else:
+                input_srs.ImportFromEPSG(4326)  # Default to WGS84 if no projection
+
+            if self.auto_fix_source_crs and input_proj and input_srs.IsProjected():
+                # Drone-service exports sometimes tag the file with a projected
+                # CRS (e.g. EPSG:2056) while the geotransform actually holds
+                # lon/lat degrees. A projected raster whose coordinates fit in
+                # the degree range with a sub-degree pixel is such a mismatch.
+                gt = dataset.GetGeoTransform()
+                xs = (gt[0], gt[0] + cols * gt[1] + rows * gt[2])
+                ys = (gt[3], gt[3] + cols * gt[4] + rows * gt[5])
+                looks_geographic = (
+                    max(abs(x) for x in xs) <= 360.0
+                    and max(abs(y) for y in ys) <= 90.0
+                    and 0.0 < abs(gt[1]) < 0.05
+                )
+                if looks_geographic:
+                    tag_name = input_srs.GetName()
+                    input_srs.ImportFromEPSG(4326)
+                    self.source_crs_fixed = (
+                        f"The input file is tagged as '{tag_name}' but its "
+                        f"coordinates are longitude/latitude degrees. The source "
+                        f"CRS was treated as WGS84 (EPSG:4326)."
+                    )
         input_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
         
         # Copy geotransform; always tag the output with a real CRS so the
