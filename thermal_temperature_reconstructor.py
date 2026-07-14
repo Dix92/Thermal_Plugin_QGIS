@@ -441,7 +441,11 @@ class ThermalTemperatureDialog(QDialog):
                 # Apply default color ramp (thermal palette)
                 self.apply_thermal_color_ramp(layer, self.min_temp.value(), self.max_temp.value())
                 QgsProject.instance().addMapLayer(layer)
-                self.iface.mapCanvas().setExtent(layer.extent())
+                # layer.extent() is in the layer CRS; the canvas needs project CRS
+                canvas_extent = QgsCoordinateTransform(
+                    layer.crs(), QgsProject.instance().crs(), QgsProject.instance()
+                ).transformBoundingBox(layer.extent())
+                self.iface.mapCanvas().setExtent(canvas_extent)
                 self.iface.mapCanvas().refresh()
             else:
                 QMessageBox.warning(self, "Warning", "Raster processed but could not be loaded into QGIS.")
@@ -540,10 +544,13 @@ class TemperatureReconstructor:
             input_srs.ImportFromWkt(input_proj)
         else:
             input_srs.ImportFromEPSG(4326)  # Default to WGS84 if no projection
+        input_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
         
-        # Copy geotransform and projection
+        # Copy geotransform; always tag the output with a real CRS so the
+        # file matches the SRS later used for warping (the input file may
+        # have an empty projection, in which case EPSG:4326 was assumed)
         out_dataset.SetGeoTransform(dataset.GetGeoTransform())
-        out_dataset.SetProjection(dataset.GetProjection())
+        out_dataset.SetProjection(input_srs.ExportToWkt())
         
         # Write temperature band
         out_band = out_dataset.GetRasterBand(1)
@@ -566,6 +573,7 @@ class TemperatureReconstructor:
         if self.target_crs and self.target_crs.isValid():
             target_srs = osr.SpatialReference()
             target_srs.ImportFromWkt(self.target_crs.toWkt())
+            target_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
             
             # Check if reprojection is needed
             if not input_srs.IsSame(target_srs):
@@ -573,16 +581,18 @@ class TemperatureReconstructor:
                     self.progress_callback(75)
                 
                 # Create temporary output file for reprojection
-                temp_output = self.output_path.replace('.tif', '_temp.tif')
+                base, ext = os.path.splitext(self.output_path)
+                temp_output = base + '_temp' + (ext if ext else '.tif')
                 if os.path.exists(temp_output):
                     os.remove(temp_output)
-                
-                # Use GDAL Warp to reproject
-                # Note: Removed resamplingAlg/resampleAlg parameter for compatibility
-                # GDAL will use default resampling (usually bilinear)
+
+                # Use GDAL Warp to reproject. Bilinear suits continuous
+                # temperature data; nodata is masked during resampling.
                 warp_options = gdal.WarpOptions(
-                    srcSRS=input_srs,
-                    dstSRS=target_srs,
+                    srcSRS=input_srs.ExportToWkt(),
+                    dstSRS=target_srs.ExportToWkt(),
+                    resampleAlg='bilinear',
+                    dstNodata=-9999,
                     outputType=gdal.GDT_Float32,
                     creationOptions=['COMPRESS=LZW']
                 )
