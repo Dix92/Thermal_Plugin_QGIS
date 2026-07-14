@@ -61,6 +61,7 @@ If you want to develop or modify the plugin:
    - Set the minimum temperature (coldest point in your image)
    - Set the maximum temperature (hottest point in your image)
    - These values should match the settings used when the thermal image was captured
+   - **Important**: The thermal image must have been captured/exported with a **fixed (defined) color scale and temperature scale**. Images using a dynamic (auto-adjusting) temperature scale cannot be reconstructed, because the color-to-temperature mapping changes from frame to frame
 
 4. **Choose Color Profile**:
    - Select the color profile that matches your thermal camera settings
