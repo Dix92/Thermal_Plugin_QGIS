@@ -5,8 +5,8 @@ A QGIS plugin that reconstructs temperature values from thermal RGB orthomosaics
 ## Features
 
 - **Multiple Color Profile Support**: Supports various thermal camera color profiles including:
+  - **Rainbow ISO 2** (recommended — the only tested and proven profile)
   - Rainbow
-  - Rainbow ISO 2
   - Ironbow
   - Gray
   - White Hot
@@ -67,6 +67,7 @@ If you want to develop or modify the plugin:
 4. **Choose Color Profile**:
    - Select the color profile that matches your thermal camera settings
    - This determines how RGB colors are interpreted as temperatures
+   - **Recommended**: Use **Rainbow ISO 2** — it is currently the only tested and proven color profile. If possible, capture/export your thermal images with this color scale
 
 5. **Set Output Location**:
    - Choose where to save the reconstructed temperature raster
@@ -104,7 +105,7 @@ The plugin analyzes the RGB values in your thermal orthomosaic and reconstructs 
   - Matching color profile selection
   - Quality of the original thermal image
   
-- **Color Profiles**: The plugin includes common color profiles, but custom or proprietary profiles may require additional calibration
+- **Color Profiles**: Only **Rainbow ISO 2** has been tested and proven so far. The other profiles are provided as-is and may require additional calibration and validation
 
 - **Metadata Loss**: If the original image had calibration data, emissivity settings, or other metadata, this information cannot be reconstructed
 
