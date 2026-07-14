@@ -1,0 +1,10 @@
+# Python requirements for Thermal Temperature Reconstructor QGIS Plugin
+# Note: Most of these are included with QGIS installation
+
+numpy>=1.16.0
+# GDAL is typically included with QGIS
+# PyQt5 is included with QGIS
+
+
+
+

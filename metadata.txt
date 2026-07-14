@@ -1,0 +1,25 @@
+[general]
+name=Thermal Temperature Reconstructor
+qgisMinimumVersion=3.0
+description=Reconstructs temperature values from thermal RGB orthomosaics using color profiles and temperature filtering settings
+about=This plugin allows you to reconstruct temperature values from thermal orthomosaics that have lost their original temperature data by analyzing RGB values, color profiles, and thermal camera settings.
+version=1.0
+author=Drone Agri Tech
+email=info@droneagritech.ch
+repository=https://github.com/Dix92/Thermal_Plugin_QGIS
+tracker=https://github.com/Dix92/Thermal_Plugin_QGIS/issues
+homepage=https://github.com/Dix92/Thermal_Plugin_QGIS
+tags=thermal,temperature,raster,drone,orthomosaic,agriculture
+category=Raster
+experimental=False
+deprecated=False
+
+[features]
+feature1=Reconstruct temperature values from RGB thermal images
+feature2=Support for multiple color profiles (Rainbow, Ironbow, Gray, etc.)
+feature3=Temperature range filtering and calibration
+feature4=Export reconstructed temperature raster
+
+
+
+

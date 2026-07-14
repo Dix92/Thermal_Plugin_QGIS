@@ -1,0 +1,10 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/plugins/thermal_temperature_reconstructor">
+        <file>icon.png</file>
+    </qresource>
+</RCC>
+
+
+
+

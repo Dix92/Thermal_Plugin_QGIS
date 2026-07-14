@@ -1,0 +1,45 @@
+# QGIS Plugin files
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+
+# Resources (can be regenerated)
+resources.py
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE / tooling
+.vscode/
+.idea/
+.claude/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.tmp
+*.log
+
+# Development helper scripts (not part of the plugin)
+create_icon.ps1
+create_icon.py
+create_icon_batch.bat
+create_icon_direct.py
+create_icon_simple.py
+generate_icon.py
+Mappa colore 0-130.txt
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+
+
+
