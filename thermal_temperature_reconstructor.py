@@ -380,7 +380,7 @@ class ThermalTemperatureDialog(QDialog):
         # Create shader and set color ramp
         shader = QgsRasterShader()
         color_ramp_shader = QgsColorRampShader()
-        color_ramp_shader.setColorRampType(QgsColorRampShader.Interpolated)
+        color_ramp_shader.setColorRampType(QgsColorRampShader.Type.Interpolated)
         color_ramp_shader.setColorRampItemList(color_ramp_items)
         
         # Set the min/max values for the shader to use actual temperature range
