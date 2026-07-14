@@ -98,7 +98,7 @@ class ThermalTemperatureReconstructor:
     def run(self):
         """Run method that performs all the real work"""
         dialog = ThermalTemperatureDialog(self.iface, self.plugin_dir)
-        dialog.exec_()
+        dialog.exec()
 
 
 class ThermalTemperatureDialog(QDialog):
