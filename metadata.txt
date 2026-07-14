@@ -11,6 +11,7 @@ email=info@droneagritech.ch
 repository=https://github.com/Dix92/Thermal_Plugin_QGIS
 tracker=https://github.com/Dix92/Thermal_Plugin_QGIS/issues
 homepage=https://github.com/Dix92/Thermal_Plugin_QGIS
+icon=icon.png
 tags=thermal,temperature,raster,drone,orthomosaic,agriculture
 category=Raster
 experimental=False
