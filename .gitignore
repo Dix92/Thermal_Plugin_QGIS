@@ -39,6 +39,7 @@ Mappa colore 0-130.txt
 build/
 dist/
 *.egg-info/
+*.zip
 
 
 
