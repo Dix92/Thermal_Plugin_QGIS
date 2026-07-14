@@ -6,6 +6,7 @@ A QGIS plugin that reconstructs temperature values from thermal RGB orthomosaics
 
 - **Multiple Color Profile Support**: Supports various thermal camera color profiles including:
   - Rainbow
+  - Rainbow ISO 2
   - Ironbow
   - Gray
   - White Hot
