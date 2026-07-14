@@ -42,12 +42,7 @@ A QGIS plugin that reconstructs temperature values from thermal RGB orthomosaics
 If you want to develop or modify the plugin:
 
 1. Clone this repository to your QGIS plugins directory (see paths above)
-2. Create a simple icon file named `icon.png` (64x64 pixels recommended) and place it in the plugin directory
-3. If you modify `resources.qrc`, compile it using:
-   ```bash
-   pyrcc5 resources.qrc -o resources.py
-   ```
-4. Restart QGIS or reload the plugin
+2. Restart QGIS or reload the plugin (e.g. with the "Plugin Reloader" plugin) after each change
 
 ## Usage
 

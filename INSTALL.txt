@@ -3,75 +3,73 @@ Thermal Temperature Reconstructor Plugin
 Installation Instructions
 ========================================
 
-QUICK INSTALL:
---------------
+QUICK INSTALL (from ZIP):
+-------------------------
+1. Open QGIS
+2. Plugins -> Manage and Install Plugins -> Install from ZIP
+3. Select the plugin ZIP file and click "Install Plugin"
+
+
+MANUAL INSTALL:
+---------------
 1. Copy this entire folder to your QGIS plugins directory:
-   
-   Windows:
+
+   Windows (QGIS 3):
    C:\Users\<YourUsername>\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\
-   
+
+   Windows (QGIS 4):
+   C:\Users\<YourUsername>\AppData\Roaming\QGIS\QGIS4\profiles\default\python\plugins\
+
    Linux:
    ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
-   
+
    macOS:
    ~/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/
 
-2. Rename the folder to: thermal_temperature_reconstructor
-   (no spaces, lowercase)
+2. Make sure the folder name has no spaces
 
-3. Create an icon file:
-   - Create a 64x64 pixel PNG image named "icon.png"
-   - Or run: python create_icon.py (if you have Pillow installed)
+3. Restart QGIS
 
-4. Restart QGIS or reload plugins
-
-5. Enable the plugin:
-   Plugins → Manage and Install Plugins → Installed → Thermal Temperature Reconstructor
+4. Enable the plugin:
+   Plugins -> Manage and Install Plugins -> Installed
+   -> Thermal Temperature Reconstructor
 
 
 VERIFY INSTALLATION:
 --------------------
 1. Open QGIS
 2. Look for the plugin icon in the toolbar
-3. Or go to: Plugins → Thermal Temperature Reconstructor
+3. Or go to: Plugins -> Thermal Temperature Reconstructor
 4. Click "Reconstruct Thermal Temperature" to test
 
 
 TROUBLESHOOTING:
 ----------------
 - Plugin not appearing?
-  → Check folder name has no spaces
-  → Verify folder is in correct plugins directory
-  → Restart QGIS
-
-- Missing icon?
-  → Create icon.png (64x64 PNG) in plugin folder
-  → Plugin will still work without icon
+  -> Check folder name has no spaces
+  -> Verify folder is in correct plugins directory
+  -> Restart QGIS
 
 - Import errors?
-  → Ensure QGIS is properly installed
-  → Check that NumPy is available (usually included with QGIS)
+  -> Ensure QGIS is properly installed
+  -> Check that NumPy is available (usually included with QGIS)
 
 - Processing errors?
-  → Verify input raster has RGB bands (3+ bands)
-  → Check file permissions for output location
+  -> Verify input raster has RGB bands (3+ bands)
+  -> Check file permissions for output location
 
 
 FOLDER STRUCTURE:
 -----------------
-thermal_temperature_reconstructor/
-├── __init__.py
-├── thermal_temperature_reconstructor.py
-├── metadata.txt
-├── resources.qrc
-├── resources.py
-├── icon.png (create this)
-├── README.md
-└── requirements.txt
+Thermal_Plugin_QGIS/
+|-- __init__.py
+|-- thermal_temperature_reconstructor.py
+|-- metadata.txt
+|-- icon.png
+|-- README.md
+|-- LICENSE
+|-- requirements.txt
+`-- INSTALL.txt
 
 
 For more details, see README.md
-
-
-
-
