@@ -113,11 +113,9 @@ The plugin analyzes the RGB values in your thermal orthomosaic and reconstructs 
 
 1. **Know Your Camera Settings**: Use the exact temperature range and color profile from when the image was captured
 
-2. **Reference Points**: If possible, include reference points with known temperatures for calibration
+2. **Color Profile Matching**: Ensure the selected color profile matches the one used when capturing the image
 
-3. **Color Profile Matching**: Ensure the selected color profile matches the one used when capturing the image
-
-4. **Temperature Range**: Set realistic temperature ranges based on your scene (e.g., -20°C to 120°C for outdoor scenes)
+3. **Temperature Range**: Set realistic temperature ranges based on your scene (e.g., -20°C to 120°C for outdoor scenes)
 
 ## Troubleshooting
 
