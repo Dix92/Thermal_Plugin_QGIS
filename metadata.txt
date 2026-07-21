@@ -5,7 +5,7 @@ qgisMaximumVersion=4.99
 supportsQt6=True
 description=Reconstructs temperature values from thermal RGB orthomosaics using color profiles and temperature filtering settings
 about=This plugin allows you to reconstruct temperature values from thermal orthomosaics that have lost their original temperature data by analyzing RGB values, color profiles, and thermal camera settings.
-version=1.2
+version=1.3
 author=Drone Agri Tech
 email=info@droneagritech.ch
 repository=https://github.com/Dix92/Thermal_Plugin_QGIS
@@ -16,12 +16,19 @@ tags=thermal,temperature,raster,drone,orthomosaic,agriculture
 category=Raster
 experimental=False
 deprecated=False
+changelog=
+    1.3 - Multilanguage interface (English, Italian, German, French) with in-dialog language selector; follows the QGIS language by default
+    1.2 - Handle wrong CRS tags in input files
+    1.1.1 - Fix reprojection issues
+    1.1 - Add plugin icon
+    1.0 - Initial release
 
 [features]
 feature1=Reconstruct temperature values from RGB thermal images
 feature2=Support for multiple color profiles (Rainbow, Ironbow, Gray, etc.)
 feature3=Temperature range filtering and calibration
 feature4=Export reconstructed temperature raster
+feature5=User interface in English, Italian, German and French
 
 
 

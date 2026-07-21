@@ -18,6 +18,37 @@ import os
 import numpy as np
 from osgeo import gdal, osr
 
+# Language setting: 'auto' follows the QGIS locale, otherwise a fixed code
+LANGUAGE_SETTING_KEY = 'ThermalTemperatureReconstructor/language'
+LANGUAGE_CODES = ['auto', 'en', 'it', 'de', 'fr']
+
+# Keep a reference to the installed translator so it is not garbage-collected
+_translator = None
+
+
+def install_translator(plugin_dir):
+    """(Re)install the plugin translator according to the language setting."""
+    global _translator
+    if _translator is not None:
+        QCoreApplication.removeTranslator(_translator)
+        _translator = None
+    lang = QSettings().value(LANGUAGE_SETTING_KEY, 'auto')
+    if lang == 'auto':
+        lang = (QSettings().value('locale/userLocale') or 'en')[0:2]
+    if lang and lang != 'en':
+        qm_path = os.path.join(
+            plugin_dir, 'i18n', 'ThermalTemperatureReconstructor_{}.qm'.format(lang))
+        if os.path.exists(qm_path):
+            translator = QTranslator()
+            if translator.load(qm_path):
+                QCoreApplication.installTranslator(translator)
+                _translator = translator
+
+
+def tr(message):
+    """Translate a string using the shared plugin context."""
+    return QCoreApplication.translate('ThermalTemperatureReconstructor', message)
+
 
 class ThermalTemperatureReconstructor:
     """QGIS Plugin Implementation."""
@@ -32,6 +63,7 @@ class ThermalTemperatureReconstructor:
         """
         self.iface = iface
         self.plugin_dir = os.path.dirname(__file__)
+        install_translator(self.plugin_dir)
         self.actions = []
         self.menu = self.tr(u'&Thermal Temperature Reconstructor')
 
@@ -108,37 +140,56 @@ class ThermalTemperatureDialog(QDialog):
         super().__init__()
         self.iface = iface
         self.plugin_dir = plugin_dir
-        self.setWindowTitle("Thermal Temperature Reconstructor")
         self.setMinimumWidth(500)
         self.setup_ui()
-        
+        self.retranslate_ui()
+
+    def tr(self, message):
+        """Get the translation for a string using the shared plugin context."""
+        return QCoreApplication.translate('ThermalTemperatureReconstructor', message)
+
     def setup_ui(self):
-        """Setup the user interface"""
+        """Setup the user interface (texts are set in retranslate_ui)"""
         from qgis.PyQt.QtWidgets import (
-            QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
+            QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
             QPushButton, QDoubleSpinBox, QComboBox, QGroupBox,
             QFormLayout, QProgressBar
         )
-        
+
         layout = QVBoxLayout()
-        
+
+        # Language selection
+        language_layout = QHBoxLayout()
+        self.language_label = QLabel()
+        self.language_combo = QComboBox()
+        # Item 0 is retranslated; native language names stay as they are
+        self.language_combo.addItems(
+            ["", "English", "Italiano", "Deutsch", "Français"])
+        current_lang = QSettings().value(LANGUAGE_SETTING_KEY, 'auto')
+        if current_lang in LANGUAGE_CODES:
+            self.language_combo.setCurrentIndex(LANGUAGE_CODES.index(current_lang))
+        self.language_combo.currentIndexChanged.connect(self.on_language_changed)
+        language_layout.addWidget(self.language_label)
+        language_layout.addWidget(self.language_combo)
+        language_layout.addStretch()
+        layout.addLayout(language_layout)
+
         # Input raster selection
-        input_group = QGroupBox("Input Raster")
+        self.input_group = QGroupBox()
         input_layout = QHBoxLayout()
         self.input_raster_line = QLineEdit()
-        self.input_raster_btn = QPushButton("Browse File...")
+        self.input_raster_btn = QPushButton()
         self.input_raster_btn.clicked.connect(self.select_input_raster)
-        self.input_folder_btn = QPushButton("Browse Folder...")
-        self.input_folder_btn.setToolTip("Select a folder containing 'result.tif'")
+        self.input_folder_btn = QPushButton()
         self.input_folder_btn.clicked.connect(self.select_input_folder)
         input_layout.addWidget(self.input_raster_line)
         input_layout.addWidget(self.input_raster_btn)
         input_layout.addWidget(self.input_folder_btn)
-        input_group.setLayout(input_layout)
-        layout.addWidget(input_group)
-        
+        self.input_group.setLayout(input_layout)
+        layout.addWidget(self.input_group)
+
         # Temperature range
-        temp_group = QGroupBox("Temperature Range")
+        self.temp_group = QGroupBox()
         temp_layout = QFormLayout()
         self.min_temp = QDoubleSpinBox()
         self.min_temp.setRange(-273.15, 2000)
@@ -148,13 +199,15 @@ class ThermalTemperatureDialog(QDialog):
         self.max_temp.setRange(-273.15, 2000)
         self.max_temp.setValue(120)
         self.max_temp.setSuffix(" °C")
-        temp_layout.addRow("Minimum Temperature:", self.min_temp)
-        temp_layout.addRow("Maximum Temperature:", self.max_temp)
-        temp_group.setLayout(temp_layout)
-        layout.addWidget(temp_group)
-        
-        # Color profile selection
-        profile_group = QGroupBox("Color Profile")
+        self.min_temp_label = QLabel()
+        self.max_temp_label = QLabel()
+        temp_layout.addRow(self.min_temp_label, self.min_temp)
+        temp_layout.addRow(self.max_temp_label, self.max_temp)
+        self.temp_group.setLayout(temp_layout)
+        layout.addWidget(self.temp_group)
+
+        # Color profile selection (profile names are palette names, not translated)
+        self.profile_group = QGroupBox()
         profile_layout = QFormLayout()
         self.color_profile = QComboBox()
         self.color_profile.addItems([
@@ -168,47 +221,45 @@ class ThermalTemperatureDialog(QDialog):
             "Arctic",
             "Custom RGB"
         ])
-        profile_layout.addRow("Profile:", self.color_profile)
-        profile_group.setLayout(profile_layout)
-        layout.addWidget(profile_group)
-        
+        self.profile_label = QLabel()
+        profile_layout.addRow(self.profile_label, self.color_profile)
+        self.profile_group.setLayout(profile_layout)
+        layout.addWidget(self.profile_group)
+
         # Output settings
-        output_group = QGroupBox("Output")
+        self.output_group = QGroupBox()
         output_layout = QVBoxLayout()
-        
+
         # Output file selection
         file_layout = QHBoxLayout()
         self.output_raster_line = QLineEdit()
-        self.output_raster_btn = QPushButton("Browse...")
+        self.output_raster_btn = QPushButton()
         self.output_raster_btn.clicked.connect(self.select_output_raster)
         file_layout.addWidget(self.output_raster_line)
         file_layout.addWidget(self.output_raster_btn)
         output_layout.addLayout(file_layout)
-        
+
         # Layer name
         name_layout = QFormLayout()
         self.layer_name_line = QLineEdit()
-        self.layer_name_line.setText("Reconstructed Temperature")
-        self.layer_name_line.setPlaceholderText("Enter layer name...")
-        name_layout.addRow("Layer Name:", self.layer_name_line)
+        self.layer_name_line.setText(self.tr("Reconstructed Temperature"))
+        self.layer_name_label = QLabel()
+        name_layout.addRow(self.layer_name_label, self.layer_name_line)
         output_layout.addLayout(name_layout)
-        
+
         # CRS selection
         crs_layout = QFormLayout()
 
         # Source CRS handling: drone-service exports often carry a wrong CRS
         # tag in the file (e.g. EPSG:2056 while the coordinates are lon/lat)
         self.source_crs_mode = QComboBox()
-        self.source_crs_mode.addItems([
-            "Auto-detect (fix wrong file tag)",
-            "Use file CRS as-is",
-            "Specify source CRS",
-        ])
+        self.source_crs_mode.addItems(["", "", ""])
         self.source_crs_mode.setCurrentIndex(0)
         self.source_crs_mode.currentIndexChanged.connect(self.toggle_crs_selector)
         self.source_crs_selector = QgsProjectionSelectionWidget()
         self.source_crs_selector.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
-        crs_layout.addRow("Source CRS:", self.source_crs_mode)
+        self.source_crs_label = QLabel()
+        crs_layout.addRow(self.source_crs_label, self.source_crs_mode)
         crs_layout.addRow("", self.source_crs_selector)
 
         self.crs_selector = QgsProjectionSelectionWidget()
@@ -221,40 +272,85 @@ class ThermalTemperatureDialog(QDialog):
 
         # Add option to use input CRS
         self.use_input_crs = QComboBox()
-        self.use_input_crs.addItems(["Use specified CRS", "Use input raster CRS"])
+        self.use_input_crs.addItems(["", ""])
         self.use_input_crs.setCurrentIndex(0)
         self.use_input_crs.currentIndexChanged.connect(self.toggle_crs_selector)
-        crs_layout.addRow("CRS Option:", self.use_input_crs)
-        crs_layout.addRow("Target CRS:", self.crs_selector)
+        self.crs_option_label = QLabel()
+        self.target_crs_label = QLabel()
+        crs_layout.addRow(self.crs_option_label, self.use_input_crs)
+        crs_layout.addRow(self.target_crs_label, self.crs_selector)
         output_layout.addLayout(crs_layout)
-        
-        output_group.setLayout(output_layout)
-        layout.addWidget(output_group)
-        
+
+        self.output_group.setLayout(output_layout)
+        layout.addWidget(self.output_group)
+
         # Initialize CRS selector state
         self.toggle_crs_selector()
-        
+
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
-        self.process_btn = QPushButton("Process")
+        self.process_btn = QPushButton()
         self.process_btn.clicked.connect(self.process_raster)
-        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn = QPushButton()
         self.cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(self.process_btn)
         button_layout.addWidget(self.cancel_btn)
         layout.addLayout(button_layout)
-        
+
         self.setLayout(layout)
-        
+
+    def retranslate_ui(self):
+        """Set (or refresh) all user-visible texts in the current language"""
+        self.setWindowTitle(self.tr("Thermal Temperature Reconstructor"))
+        self.language_label.setText(self.tr("Language:"))
+        self.language_combo.setItemText(0, self.tr("Automatic (QGIS language)"))
+        self.input_group.setTitle(self.tr("Input Raster"))
+        self.input_raster_btn.setText(self.tr("Browse File..."))
+        self.input_folder_btn.setText(self.tr("Browse Folder..."))
+        self.input_folder_btn.setToolTip(
+            self.tr("Select a folder containing 'result.tif'"))
+        self.temp_group.setTitle(self.tr("Temperature Range"))
+        self.min_temp_label.setText(self.tr("Minimum Temperature:"))
+        self.max_temp_label.setText(self.tr("Maximum Temperature:"))
+        self.profile_group.setTitle(self.tr("Color Profile"))
+        self.profile_label.setText(self.tr("Profile:"))
+        self.output_group.setTitle(self.tr("Output"))
+        self.output_raster_btn.setText(self.tr("Browse..."))
+        self.layer_name_line.setPlaceholderText(self.tr("Enter layer name..."))
+        self.layer_name_label.setText(self.tr("Layer Name:"))
+        for i, text in enumerate([
+                self.tr("Auto-detect (fix wrong file tag)"),
+                self.tr("Use file CRS as-is"),
+                self.tr("Specify source CRS")]):
+            self.source_crs_mode.setItemText(i, text)
+        self.source_crs_label.setText(self.tr("Source CRS:"))
+        for i, text in enumerate([
+                self.tr("Use specified CRS"),
+                self.tr("Use input raster CRS")]):
+            self.use_input_crs.setItemText(i, text)
+        self.crs_option_label.setText(self.tr("CRS Option:"))
+        self.target_crs_label.setText(self.tr("Target CRS:"))
+        self.process_btn.setText(self.tr("Process"))
+        self.cancel_btn.setText(self.tr("Cancel"))
+
+    def on_language_changed(self, index):
+        """Persist the chosen language, reload the translator and refresh texts"""
+        if index < 0 or index >= len(LANGUAGE_CODES):
+            return
+        QSettings().setValue(LANGUAGE_SETTING_KEY, LANGUAGE_CODES[index])
+        install_translator(self.plugin_dir)
+        self.retranslate_ui()
+
     def select_input_raster(self):
         """Select input thermal raster"""
         filename, _ = QFileDialog.getOpenFileName(
-            self, "Select Thermal Raster", "", "Raster Files (*.tif *.tiff *.png *.jpg *.jpeg)")
+            self, self.tr("Select Thermal Raster"), "",
+            self.tr("Raster Files (*.tif *.tiff *.png *.jpg *.jpeg)"))
         if filename:
             self.input_raster_line.setText(filename)
             # Auto-generate output filename
@@ -265,7 +361,7 @@ class ThermalTemperatureDialog(QDialog):
     def select_input_folder(self):
         """Select folder containing result.tif (searches subfolders too)"""
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Folder Containing result.tif", "")
+            self, self.tr("Select Folder Containing result.tif"), "")
         if folder:
             # Search for result.tif in the folder and all subfolders
             result_file = None
@@ -282,14 +378,15 @@ class ThermalTemperatureDialog(QDialog):
                     self.output_raster_line.setText(base_name + "_temperature.tif")
             else:
                 QMessageBox.warning(
-                    self, "File Not Found", 
-                    f"Could not find 'result.tif' in the selected folder or its subfolders:\n{folder}"
+                    self, self.tr("File Not Found"),
+                    self.tr("Could not find 'result.tif' in the selected folder "
+                            "or its subfolders:\n{0}").format(folder)
                 )
     
     def select_output_raster(self):
         """Select output raster location"""
         filename, _ = QFileDialog.getSaveFileName(
-            self, "Save Output Raster", "", "GeoTIFF (*.tif)")
+            self, self.tr("Save Output Raster"), "", self.tr("GeoTIFF (*.tif)"))
         if filename:
             if not filename.endswith('.tif'):
                 filename += '.tif'
@@ -404,11 +501,13 @@ class ThermalTemperatureDialog(QDialog):
         output_path = self.output_raster_line.text()
         
         if not input_path or not os.path.exists(input_path):
-            QMessageBox.warning(self, "Error", "Please select a valid input raster file.")
+            QMessageBox.warning(self, self.tr("Error"),
+                                self.tr("Please select a valid input raster file."))
             return
-            
+
         if not output_path:
-            QMessageBox.warning(self, "Error", "Please specify an output file path.")
+            QMessageBox.warning(self, self.tr("Error"),
+                                self.tr("Please specify an output file path."))
             return
         
         try:
@@ -422,7 +521,8 @@ class ThermalTemperatureDialog(QDialog):
                 # Use specified CRS
                 target_crs = self.crs_selector.crs()
                 if not target_crs.isValid():
-                    QMessageBox.warning(self, "Error", "Please select a valid target CRS.")
+                    QMessageBox.warning(self, self.tr("Error"),
+                                        self.tr("Please select a valid target CRS."))
                     self.process_btn.setEnabled(True)
                     self.progress_bar.setVisible(False)
                     return
@@ -434,7 +534,8 @@ class ThermalTemperatureDialog(QDialog):
             if self.source_crs_mode.currentIndex() == 2:
                 source_crs = self.source_crs_selector.crs()
                 if not source_crs.isValid():
-                    QMessageBox.warning(self, "Error", "Please select a valid source CRS.")
+                    QMessageBox.warning(self, self.tr("Error"),
+                                        self.tr("Please select a valid source CRS."))
                     self.process_btn.setEnabled(True)
                     self.progress_bar.setVisible(False)
                     return
@@ -455,17 +556,18 @@ class ThermalTemperatureDialog(QDialog):
             reconstructor.reconstruct()
 
             self.progress_bar.setValue(100)
-            success_msg = (
-                f"Temperature reconstruction completed!\nOutput saved to:\n{output_path}"
-            )
+            success_msg = self.tr(
+                "Temperature reconstruction completed!\nOutput saved to:\n{0}"
+            ).format(output_path)
             if reconstructor.source_crs_fixed:
-                success_msg += f"\n\nNote: {reconstructor.source_crs_fixed}"
-            QMessageBox.information(self, "Success", success_msg)
-            
+                success_msg += "\n\n" + self.tr("Note: {0}").format(
+                    reconstructor.source_crs_fixed)
+            QMessageBox.information(self, self.tr("Success"), success_msg)
+
             # Get layer name (use custom name or default)
             layer_name = self.layer_name_line.text().strip()
             if not layer_name:
-                layer_name = "Reconstructed Temperature"
+                layer_name = self.tr("Reconstructed Temperature")
             
             # Load the output raster into QGIS
             layer = QgsRasterLayer(output_path, layer_name)
@@ -480,12 +582,15 @@ class ThermalTemperatureDialog(QDialog):
                 self.iface.mapCanvas().setExtent(canvas_extent)
                 self.iface.mapCanvas().refresh()
             else:
-                QMessageBox.warning(self, "Warning", "Raster processed but could not be loaded into QGIS.")
-            
+                QMessageBox.warning(
+                    self, self.tr("Warning"),
+                    self.tr("Raster processed but could not be loaded into QGIS."))
+
             self.accept()
-            
+
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error during processing:\n{str(e)}")
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("Error during processing:\n{0}").format(str(e)))
         finally:
             self.process_btn.setEnabled(True)
             self.progress_bar.setVisible(False)
@@ -512,7 +617,8 @@ class TemperatureReconstructor:
         # Open input raster
         dataset = gdal.Open(self.input_path)
         if dataset is None:
-            raise ValueError(f"Could not open raster file: {self.input_path}")
+            raise ValueError(
+                tr("Could not open raster file: {0}").format(self.input_path))
         
         # Get raster properties
         cols = dataset.RasterXSize
@@ -520,7 +626,7 @@ class TemperatureReconstructor:
         bands = dataset.RasterCount
         
         if bands < 3:
-            raise ValueError("Input raster must have at least 3 bands (RGB)")
+            raise ValueError(tr("Input raster must have at least 3 bands (RGB)"))
         
         # Read RGB bands (optimized: read directly as arrays)
         r_band = dataset.GetRasterBand(1).ReadAsArray()
@@ -602,11 +708,11 @@ class TemperatureReconstructor:
                 if looks_geographic:
                     tag_name = input_srs.GetName()
                     input_srs.ImportFromEPSG(4326)
-                    self.source_crs_fixed = (
-                        f"The input file is tagged as '{tag_name}' but its "
-                        f"coordinates are longitude/latitude degrees. The source "
-                        f"CRS was treated as WGS84 (EPSG:4326)."
-                    )
+                    self.source_crs_fixed = tr(
+                        "The input file is tagged as '{0}' but its coordinates "
+                        "are longitude/latitude degrees. The source CRS was "
+                        "treated as WGS84 (EPSG:4326)."
+                    ).format(tag_name)
         input_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
         
         # Copy geotransform; always tag the output with a real CRS so the
@@ -664,7 +770,7 @@ class TemperatureReconstructor:
                 reprojected = gdal.Warp(temp_output, self.output_path, options=warp_options)
                 
                 if reprojected is None:
-                    raise ValueError("Reprojection failed")
+                    raise ValueError(tr("Reprojection failed"))
                 
                 reprojected = None
                 

@@ -21,6 +21,8 @@ A QGIS plugin that reconstructs temperature values from thermal RGB orthomosaics
 
 - **QGIS Integration**: Automatically loads processed rasters into your QGIS project
 
+- **Multilanguage Interface**: Available in English, Italian, German and French. By default the plugin follows the QGIS language setting; a language selector in the dialog lets you override it (users of other languages can pick any of the four, English being the fallback)
+
 ## Installation
 
 ### Manual Installation
